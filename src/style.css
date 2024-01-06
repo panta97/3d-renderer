@@ -1,0 +1,10 @@
+#app {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 100vh;
+}
+
+#plane {
+  border: 1px solid magenta;
+}
