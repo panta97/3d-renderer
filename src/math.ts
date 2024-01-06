@@ -238,10 +238,6 @@ export class Wireframe {
     const rotMat = makeRotationMatrix(deltaAngle, axisVector);
     this.axes = rotMat.mulMat(this.axes);
     this.mulMat(rotMat);
-    // for (let i = 0; i < this.vertices.length; i++) {
-    //   const vertex = this.vertices[i];
-    //   this.vertices[i] = rotMat.mulVec(vertex);
-    // }
     this.local2world();
 
     return this;
