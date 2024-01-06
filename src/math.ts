@@ -264,7 +264,6 @@ export class Wireframe {
     }
 
     const axisVector = this.getAxis(axis);
-    console.log({ deltaVal });
     const transMat = makeTranslationMatrix(deltaVal, axisVector);
     this.origin = transMat.mulVec(this.origin);
     this.mulMat(transMat);
