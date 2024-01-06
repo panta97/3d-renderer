@@ -1,17 +1,9 @@
 import {
-  getRotationXMatrix,
-  getRotationYMatrix,
-  getRotationZMatrix,
-  getScaleXMatrix,
-  getScaleYMatrix,
-  getScaleZMatrix,
-  getTranslationXMatrix,
-  getTranslationYMatrix,
-  getTranslationZMatrix,
   makeRotationMatrix,
   makeScalingMatrix,
   makeTranslationMatrix,
 } from "./transformations";
+import { sharpCanvas } from "./utils";
 
 export class Matrix4 {
   arr: number[];
@@ -303,21 +295,24 @@ export class Wireframe {
 export class Scene {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.width = canvas.width;
+    this.height = canvas.height;
+    sharpCanvas(this.canvas);
     this.ctx = canvas.getContext("2d")!;
   }
 
   private denormalize(val: number, axis: "x" | "y") {
-    const width = this.canvas.width;
-    const height = this.canvas.height;
-    const length = axis === "x" ? width : height;
+    const length = axis === "x" ? this.width : this.height;
 
     if (axis === "x") {
       return (length * (val + 1)) / 2;
     } else {
-      return height - (length * (val + 1)) / 2;
+      return this.height - (length * (val + 1)) / 2;
     }
   }
 
