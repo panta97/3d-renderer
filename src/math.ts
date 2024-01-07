@@ -1,4 +1,6 @@
 import {
+  getLocal2WorldMatrix,
+  getWorld2LocalMatrix,
   makeRotationMatrix,
   makeScalingMatrix,
   makeTranslationMatrix,
@@ -166,36 +168,6 @@ export class Wireframe {
     return this;
   }
 
-  getWorld2LocalMat() {
-    const arr2d = [
-      [1, 0, 0, this.origin.x * -1],
-      [0, 1, 0, this.origin.y * -1],
-      [0, 0, 1, this.origin.z * -1],
-      [0, 0, 0, 1],
-    ];
-    const w2lMat = new Matrix4(arr2d.flatMap((e) => e));
-    return w2lMat;
-  }
-
-  getLocal2WorldMat() {
-    const arr2d = [
-      [1, 0, 0, this.origin.x],
-      [0, 1, 0, this.origin.y],
-      [0, 0, 1, this.origin.z],
-      [0, 0, 0, 1],
-    ];
-    const l2wMat = new Matrix4(arr2d.flatMap((e) => e));
-    return l2wMat;
-  }
-
-  world2local() {
-    return this.mulMat(this.getWorld2LocalMat());
-  }
-
-  local2world() {
-    return this.mulMat(this.getLocal2WorldMat());
-  }
-
   getAxis(axis: "x" | "y" | "z") {
     let [x, y, z, w] = [0, 0, 0, 0];
     if (axis === "x") {
@@ -224,13 +196,13 @@ export class Wireframe {
         this.transformations.rotationZ = angle;
         break;
     }
-    this.world2local();
 
+    this.mulMat(getWorld2LocalMatrix(this.origin));
     const axisVector = this.getAxis(axis);
     const rotMat = makeRotationMatrix(deltaAngle, axisVector);
     this.axes = rotMat.mulMat(this.axes);
     this.mulMat(rotMat);
-    this.local2world();
+    this.mulMat(getLocal2WorldMatrix(this.origin));
 
     return this;
   }
@@ -282,11 +254,11 @@ export class Wireframe {
       }
     }
 
-    this.world2local();
+    this.mulMat(getWorld2LocalMatrix(this.origin));
     const axisVector = this.getAxis(axis);
     const scaleMat = makeScalingMatrix(deltaVal, axisVector);
     this.mulMat(scaleMat);
-    this.local2world();
+    this.mulMat(getLocal2WorldMatrix(this.origin));
 
     return this;
   }

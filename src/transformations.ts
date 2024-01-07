@@ -93,6 +93,26 @@ export const getScaleZMatrix = (val: number) => {
   return new Matrix4(arr2d.flatMap((e) => e));
 };
 
+export const getLocal2WorldMatrix = (origin: Vector) => {
+  const arr2d = [
+    [1, 0, 0, origin.x],
+    [0, 1, 0, origin.y],
+    [0, 0, 1, origin.z],
+    [0, 0, 0, 1],
+  ];
+  return new Matrix4(arr2d.flatMap((e) => e));
+};
+
+export const getWorld2LocalMatrix = (origin: Vector) => {
+  const arr2d = [
+    [1, 0, 0, origin.x * -1],
+    [0, 1, 0, origin.y * -1],
+    [0, 0, 1, origin.z * -1],
+    [0, 0, 0, 1],
+  ];
+  return new Matrix4(arr2d.flatMap((e) => e));
+};
+
 export const makeRotationMatrix = (angle: number, a: Vector) => {
   const angleRad = (angle * Math.PI) / 180;
   const c = Math.cos(angleRad);

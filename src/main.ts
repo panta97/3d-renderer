@@ -1,6 +1,7 @@
 import dat from "dat.gui";
 import { Matrix4, Scene, Vector, Wireframe } from "./math";
 import "./style.css";
+import { getLocal2WorldMatrix } from "./transformations";
 
 const canvas = document.getElementById("plane")! as HTMLCanvasElement;
 
@@ -64,7 +65,7 @@ const mulProjMatByZ = (projMat: Matrix4, wireframe: Wireframe) => {
     vertices.push(vResult);
   }
 
-  const l2wMat = wireframe.getLocal2WorldMat();
+  const l2wMat = getLocal2WorldMatrix(wireframe.origin);
 
   let axes: Matrix4;
   const axesArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -142,15 +143,12 @@ const render = (type: keyof typeof settings | "none") => {
       break;
   }
 
-  // trasnCube.axes.print();
-
   const projMat = getProjectionMatrix(settings.fov);
   const projCube = mulProjMatByZ(projMat, trasnCube.clone());
 
   const reactEvent = new CustomEvent("reactEvent", {
     detail: {
       vertices: trasnCube?.vertices,
-      // axes: trasnCube?.axes,
     },
   });
   window.dispatchEvent(reactEvent);
