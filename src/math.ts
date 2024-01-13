@@ -5,6 +5,7 @@ import {
   makeScalingMatrix,
   makeTranslationMatrix,
 } from "./transformations";
+import { axisType } from "./types";
 import { sharpCanvas } from "./utils";
 
 export class Matrix4 {
@@ -74,12 +75,14 @@ export class Matrix4 {
 
   getCol(col: number) {
     // col start from zero like arrays
-    return [
+    const [x, y, z, w] = [
       this.arr[col],
       this.arr[col + 4],
       this.arr[col + 8],
       this.arr[col + 12],
     ];
+
+    return new Vector(x, y, z, w);
   }
 
   print() {
@@ -116,13 +119,21 @@ export class Vector {
   getCoords() {
     return [this.x, this.y, this.z, this.w];
   }
+
+  dotProd(v: Vector) {
+    return this.x * v.x + this.y * v.y + this.z * v.z;
+  }
+
+  mag() {
+    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+  }
 }
 
 export class Wireframe {
   vertices: Vector[];
   edges: number[][];
   origin: Vector;
-  axes: Matrix4;
+  axes: Vector[];
   transformations = {
     rotationX: 0,
     rotationY: 0,
@@ -139,7 +150,7 @@ export class Wireframe {
     vertices: Vector[],
     edges: number[][],
     origin: Vector,
-    axes: Matrix4
+    axes: Vector[]
   ) {
     this.vertices = vertices;
     this.edges = edges;
@@ -158,7 +169,7 @@ export class Wireframe {
     return wireframe;
   }
 
-  mulMat(matrix: Matrix4) {
+  verticesMulMat(matrix: Matrix4) {
     const vertices: Vector[] = [];
     for (let i = 0; i < this.vertices.length; i++) {
       const vertex = this.vertices[i];
@@ -168,98 +179,193 @@ export class Wireframe {
     return this;
   }
 
-  getAxis(axis: "x" | "y" | "z") {
-    let [x, y, z, w] = [0, 0, 0, 0];
-    if (axis === "x") {
-      [x, y, z, w] = this.axes.getCol(0);
-    } else if (axis === "y") {
-      [x, y, z, w] = this.axes.getCol(1);
-    } else if (axis === "z") {
-      [x, y, z, w] = this.axes.getCol(2);
+  axesMulMat(matrix: Matrix4) {
+    const axes: Vector[] = [];
+    for (let i = 0; i < this.axes.length; i++) {
+      const axis = this.axes[i];
+      axes.push(matrix.mulVec(axis));
     }
-    return new Vector(x, y, z, w);
+    this.axes = axes;
+    return this;
   }
 
-  rotate(angle: number, axis: "x" | "y" | "z") {
+  rotate(angle: number, axis: axisType) {
     let deltaAngle = 0;
+    let axisVector;
     switch (axis) {
       case "x":
         deltaAngle = angle - this.transformations.rotationX;
         this.transformations.rotationX = angle;
+        axisVector = this.axes[0];
         break;
       case "y":
         deltaAngle = angle - this.transformations.rotationY;
         this.transformations.rotationY = angle;
+        axisVector = this.axes[1];
         break;
       case "z":
         deltaAngle = angle - this.transformations.rotationZ;
         this.transformations.rotationZ = angle;
+        axisVector = this.axes[2];
         break;
     }
 
-    this.mulMat(getWorld2LocalMatrix(this.origin));
-    const axisVector = this.getAxis(axis);
+    this.verticesMulMat(getWorld2LocalMatrix(this.origin));
     const rotMat = makeRotationMatrix(deltaAngle, axisVector);
-    this.axes = rotMat.mulMat(this.axes);
-    this.mulMat(rotMat);
-    this.mulMat(getLocal2WorldMatrix(this.origin));
+    this.axesMulMat(rotMat);
+    this.verticesMulMat(rotMat);
+    this.verticesMulMat(getLocal2WorldMatrix(this.origin));
 
     return this;
   }
 
-  translate(val: number, axis: "x" | "y" | "z") {
+  translate(val: number, axis: axisType) {
     let deltaVal = 0;
+    let axisVector;
     switch (axis) {
       case "x": {
         deltaVal = val - this.transformations.translationX;
         this.transformations.translationX = val;
+        axisVector = this.axes[0];
         break;
       }
       case "y": {
         deltaVal = val - this.transformations.translationY;
         this.transformations.translationY = val;
+        axisVector = this.axes[1];
         break;
       }
       case "z": {
         deltaVal = val - this.transformations.translationZ;
         this.transformations.translationZ = val;
+        axisVector = this.axes[2];
         break;
       }
     }
 
-    const axisVector = this.getAxis(axis);
     const transMat = makeTranslationMatrix(deltaVal, axisVector);
     this.origin = transMat.mulVec(this.origin);
-    this.mulMat(transMat);
+    this.verticesMulMat(transMat);
     return this;
   }
 
-  scale(val: number, axis: "x" | "y" | "z") {
+  scale(val: number, axis: axisType) {
     let deltaVal = 0;
+    let axisVector;
     switch (axis) {
       case "x": {
         deltaVal = val / this.transformations.scaleX;
         this.transformations.scaleX = val;
+        axisVector = this.axes[0];
         break;
       }
       case "y": {
         deltaVal = val / this.transformations.scaleY;
         this.transformations.scaleY = val;
+        axisVector = this.axes[1];
         break;
       }
       case "z": {
         deltaVal = val / this.transformations.scaleZ;
         this.transformations.scaleZ = val;
+        axisVector = this.axes[2];
         break;
       }
     }
 
-    this.mulMat(getWorld2LocalMatrix(this.origin));
-    const axisVector = this.getAxis(axis);
+    this.verticesMulMat(getWorld2LocalMatrix(this.origin));
     const scaleMat = makeScalingMatrix(deltaVal, axisVector);
-    this.mulMat(scaleMat);
-    this.mulMat(getLocal2WorldMatrix(this.origin));
+    this.verticesMulMat(scaleMat);
+    this.verticesMulMat(getLocal2WorldMatrix(this.origin));
 
+    return this;
+  }
+}
+
+export class Camera {
+  origin: Vector;
+  axes: Vector[];
+
+  transformations = {
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0,
+    translationX: 0,
+    translationY: 0,
+    translationZ: 0,
+  };
+
+  constructor(origin: Vector, axes: Vector[]) {
+    this.origin = origin;
+    this.axes = axes;
+  }
+
+  clone() {
+    return new Camera(this.origin, this.axes);
+  }
+
+  axesMulMat(matrix: Matrix4) {
+    const axes: Vector[] = [];
+    for (let i = 0; i < this.axes.length; i++) {
+      const axis = this.axes[i];
+      axes.push(matrix.mulVec(axis));
+    }
+    this.axes = axes;
+    return this;
+  }
+
+  rotate(angle: number, axis: axisType) {
+    let deltaAngle = 0;
+    let axisVector;
+    switch (axis) {
+      case "x":
+        deltaAngle = angle - this.transformations.rotationX;
+        this.transformations.rotationX = angle;
+        axisVector = this.axes[0];
+        break;
+      case "y":
+        deltaAngle = angle - this.transformations.rotationY;
+        this.transformations.rotationY = angle;
+        axisVector = this.axes[1];
+        break;
+      case "z":
+        deltaAngle = angle - this.transformations.rotationZ;
+        this.transformations.rotationZ = angle;
+        axisVector = this.axes[2];
+        break;
+    }
+
+    const rotMat = makeRotationMatrix(deltaAngle, axisVector);
+    this.axesMulMat(rotMat);
+    return this;
+  }
+
+  translate(val: number, axis: axisType) {
+    let deltaVal = 0;
+    let axisVector;
+    switch (axis) {
+      case "x": {
+        deltaVal = val - this.transformations.translationX;
+        this.transformations.translationX = val;
+        axisVector = this.axes[0];
+        break;
+      }
+      case "y": {
+        deltaVal = val - this.transformations.translationY;
+        this.transformations.translationY = val;
+        axisVector = this.axes[1];
+        break;
+      }
+      case "z": {
+        deltaVal = val - this.transformations.translationZ;
+        this.transformations.translationZ = val;
+        axisVector = this.axes[2];
+        break;
+      }
+    }
+
+    const transMat = makeTranslationMatrix(deltaVal, axisVector);
+    this.origin = transMat.mulVec(this.origin);
     return this;
   }
 }
@@ -307,12 +413,15 @@ export class Scene {
         (i === 2 ? "255" : "0") +
         ")";
 
-      const [x, y] = wireframe.axes.getCol(i);
+      const axisVector = wireframe.axes[i];
       ctx.moveTo(
         this.denormalize(wireframe.origin.x, "x"),
         this.denormalize(wireframe.origin.y, "y")
       );
-      ctx.lineTo(this.denormalize(x, "x"), this.denormalize(y, "y"));
+      ctx.lineTo(
+        this.denormalize(axisVector.x, "x"),
+        this.denormalize(axisVector.y, "y")
+      );
       ctx.stroke();
     }
 

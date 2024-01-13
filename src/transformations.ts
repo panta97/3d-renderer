@@ -93,6 +93,8 @@ export const getScaleZMatrix = (val: number) => {
   return new Matrix4(arr2d.flatMap((e) => e));
 };
 
+// l2w w2l translation
+
 export const getLocal2WorldMatrix = (origin: Vector) => {
   const arr2d = [
     [1, 0, 0, origin.x],
@@ -111,6 +113,49 @@ export const getWorld2LocalMatrix = (origin: Vector) => {
     [0, 0, 0, 1],
   ];
   return new Matrix4(arr2d.flatMap((e) => e));
+};
+
+// l2w w2l rotation
+export const getWorld2LocalRotMatrix = (axes: Vector[], v: Vector) => {
+  const ax = axes[0];
+  const ay = axes[1];
+  const az = axes[2];
+
+  // direction
+  const dx = v.dotProd(ax) > 0 ? 1 : -1;
+  const dy = v.dotProd(ay) > 0 ? 1 : -1;
+  const dz = v.dotProd(az) > 0 ? 1 : -1;
+
+  const matX = new Matrix4(
+    [
+      [ax.x * ax.x, ax.x * ax.y, ax.x * ax.z, 0],
+      [ax.x * ax.y, ax.y * ax.y, ax.y * ax.z, 0],
+      [ax.x * ax.z, ax.y * ax.z, ax.z * ax.z, 0],
+      [0, 0, 0, 1],
+    ].flatMap((v) => v)
+  );
+  const matY = new Matrix4(
+    [
+      [ay.x * ay.x, ay.x * ay.y, ay.x * ay.z, 0],
+      [ay.x * ay.y, ay.y * ay.y, ay.y * ay.z, 0],
+      [ay.x * ay.z, ay.y * ay.z, ay.z * ay.z, 0],
+      [0, 0, 0, 1],
+    ].flatMap((v) => v)
+  );
+  const matZ = new Matrix4(
+    [
+      [az.x * az.x, az.x * az.y, az.x * az.z, 0],
+      [az.x * az.y, az.y * az.y, az.y * az.z, 0],
+      [az.x * az.z, az.y * az.z, az.z * az.z, 0],
+      [0, 0, 0, 1],
+    ].flatMap((v) => v)
+  );
+
+  const x = matX.mulVec(v).mag() * dx;
+  const y = matY.mulVec(v).mag() * dy;
+  const z = matZ.mulVec(v).mag() * dz;
+
+  return new Vector(x, y, z);
 };
 
 export const makeRotationMatrix = (angle: number, a: Vector) => {

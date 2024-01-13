@@ -1,7 +1,11 @@
 import dat from "dat.gui";
-import { Matrix4, Scene, Vector, Wireframe } from "./math";
+import { Camera, Matrix4, Scene, Vector, Wireframe } from "./math";
 import "./style.css";
-import { getLocal2WorldMatrix } from "./transformations";
+import {
+  getLocal2WorldMatrix,
+  getWorld2LocalMatrix,
+  getWorld2LocalRotMatrix,
+} from "./transformations";
 
 const canvas = document.getElementById("plane")! as HTMLCanvasElement;
 
@@ -31,15 +35,14 @@ const cube = new Wireframe(
     [3, 7],
   ],
   new Vector(0, 0, 4),
-  new Matrix4(
-    [
-      [1, 0, 0, 0],
-      [0, 1, 0, 0],
-      [0, 0, 1, 0],
-      [0, 0, 0, 1],
-    ].flatMap((e) => e)
-  )
+  [new Vector(1, 0, 0), new Vector(0, 1, 0), new Vector(0, 0, 1)]
 );
+
+const camera = new Camera(new Vector(0, 0, 0), [
+  new Vector(1, 0, 0),
+  new Vector(0, 1, 0),
+  new Vector(0, 0, 1),
+]);
 
 const getProjectionMatrix = (fov: number) => {
   const fovRad = (fov * Math.PI) / 180;
@@ -54,7 +57,31 @@ const getProjectionMatrix = (fov: number) => {
   return new Matrix4(arr2d.flatMap((e) => e));
 };
 
-const mulProjMatByZ = (projMat: Matrix4, wireframe: Wireframe) => {
+const mulProjMatByZ = (
+  projMat: Matrix4,
+  wireframe: Wireframe,
+  camera: Camera
+) => {
+  const l2wMat = getLocal2WorldMatrix(wireframe.origin);
+  wireframe = wireframe.axesMulMat(l2wMat);
+
+  // transform wireframe world coords to camera local coords
+  const camWorld2LocalMat = getWorld2LocalMatrix(camera.origin);
+  wireframe.verticesMulMat(camWorld2LocalMat);
+  wireframe.axesMulMat(camWorld2LocalMat);
+  wireframe.origin = camWorld2LocalMat.mulVec(wireframe.origin);
+
+  // rotate wireframe world coords to camera local axes
+  for (let i = 0; i < wireframe.vertices.length; i++) {
+    const vertex = wireframe.vertices[i];
+    wireframe.vertices[i] = getWorld2LocalRotMatrix(camera.axes, vertex);
+  }
+  for (let i = 0; i < wireframe.axes.length; i++) {
+    const axis = wireframe.axes[i];
+    wireframe.axes[i] = getWorld2LocalRotMatrix(camera.axes, axis);
+  }
+  wireframe.origin = getWorld2LocalRotMatrix(camera.axes, wireframe.origin);
+
   const vertices: Vector[] = [];
   for (let i = 0; i < wireframe.vertices.length; i++) {
     const vertex = wireframe.vertices[i];
@@ -65,22 +92,12 @@ const mulProjMatByZ = (projMat: Matrix4, wireframe: Wireframe) => {
     vertices.push(vResult);
   }
 
-  const l2wMat = getLocal2WorldMatrix(wireframe.origin);
-
-  let axes: Matrix4;
-  const axesArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  for (let i = 0; i < 3; i++) {
-    const [x, y, z, w] = wireframe.axes.getCol(i);
-    const axisVector = l2wMat.mulVec(new Vector(x, y, z, w));
-    const vResult = projMat.mulVec(axisVector);
+  for (let i = 0; i < wireframe.axes.length; i++) {
+    const vResult = projMat.mulVec(wireframe.axes[i]);
     vResult.x /= vResult.w;
     vResult.y /= vResult.w;
-    axesArr[i] = vResult.x;
-    axesArr[i + 4] = vResult.y;
-    axesArr[i + 8] = vResult.z;
-    axesArr[i + 12] = vResult.w;
+    wireframe.axes[i] = vResult;
   }
-  axes = new Matrix4(axesArr);
 
   const origin = projMat.mulVec(wireframe.origin);
   origin.x /= origin.w;
@@ -88,7 +105,6 @@ const mulProjMatByZ = (projMat: Matrix4, wireframe: Wireframe) => {
 
   wireframe.vertices = vertices;
   wireframe.origin = origin;
-  wireframe.axes = axes;
 
   return wireframe;
 };
@@ -105,6 +121,12 @@ const settings = {
   scaleX: 1,
   scaleY: 1,
   scaleZ: 1,
+  camRotateX: 0,
+  camRotateY: 0,
+  camRotateZ: 0,
+  camTranslateX: 0,
+  camTranslateY: 0,
+  camTranslateZ: 0,
   fov: 90,
 };
 
@@ -112,6 +134,7 @@ const gui = new dat.GUI();
 
 const render = (type: keyof typeof settings | "none") => {
   let trasnCube = cube;
+  let transCamera = camera;
 
   switch (type) {
     case "rotateX":
@@ -141,17 +164,39 @@ const render = (type: keyof typeof settings | "none") => {
     case "scaleZ":
       trasnCube = trasnCube.scale(settings.scaleZ, "z");
       break;
+    case "camRotateX":
+      transCamera = transCamera.rotate(settings.camRotateX, "x");
+      break;
+    case "camRotateY":
+      transCamera = transCamera.rotate(settings.camRotateY, "y");
+      break;
+    case "camRotateZ":
+      transCamera = transCamera.rotate(settings.camRotateZ, "z");
+      break;
+    case "camTranslateX":
+      transCamera = transCamera.translate(settings.camTranslateX, "x");
+      break;
+    case "camTranslateY":
+      transCamera = transCamera.translate(settings.camTranslateY, "y");
+      break;
+    case "camTranslateZ":
+      transCamera = transCamera.translate(settings.camTranslateZ, "z");
+      break;
   }
 
   const projMat = getProjectionMatrix(settings.fov);
-  const projCube = mulProjMatByZ(projMat, trasnCube.clone());
+  const projCube = mulProjMatByZ(
+    projMat,
+    trasnCube.clone(),
+    transCamera.clone()
+  );
 
-  const reactEvent = new CustomEvent("reactEvent", {
-    detail: {
-      vertices: trasnCube?.vertices,
-    },
-  });
-  window.dispatchEvent(reactEvent);
+  // const reactEvent = new CustomEvent("reactEvent", {
+  //   detail: {
+  //     vertices: trasnCube?.vertices,
+  //   },
+  // });
+  // window.dispatchEvent(reactEvent);
   scene.render(projCube);
 };
 
@@ -207,3 +252,33 @@ gui
   .min(15)
   .max(180)
   .onChange(() => render("none"));
+gui
+  .add(settings, "camRotateX")
+  .min(0)
+  .max(360)
+  .onChange(() => render("camRotateX"));
+gui
+  .add(settings, "camRotateY")
+  .min(0)
+  .max(360)
+  .onChange(() => render("camRotateY"));
+gui
+  .add(settings, "camRotateZ")
+  .min(0)
+  .max(360)
+  .onChange(() => render("camRotateZ"));
+gui
+  .add(settings, "camTranslateX")
+  .min(-10)
+  .max(10)
+  .onChange(() => render("camTranslateX"));
+gui
+  .add(settings, "camTranslateY")
+  .min(-10)
+  .max(10)
+  .onChange(() => render("camTranslateY"));
+gui
+  .add(settings, "camTranslateZ")
+  .min(-10)
+  .max(10)
+  .onChange(() => render("camTranslateZ"));
