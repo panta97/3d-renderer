@@ -26,7 +26,7 @@ export class Matrix4 {
         this.arr[rowIdx] * vector.x +
           this.arr[rowIdx + 1] * vector.y +
           this.arr[rowIdx + 2] * vector.z +
-          this.arr[rowIdx + 3] * vector.w
+          this.arr[rowIdx + 3] * vector.w,
       );
     }
 
@@ -44,7 +44,7 @@ export class Matrix4 {
           this.arr[rowIdx] * matrix.arr[j] +
             this.arr[rowIdx + 1] * matrix.arr[j + 4] +
             this.arr[rowIdx + 2] * matrix.arr[j + 8] +
-            this.arr[rowIdx + 3] * matrix.arr[j + 12]
+            this.arr[rowIdx + 3] * matrix.arr[j + 12],
         );
       }
     }
@@ -150,7 +150,7 @@ export class Wireframe {
     vertices: Vector[],
     edges: number[][],
     origin: Vector,
-    axes: Vector[]
+    axes: Vector[],
   ) {
     this.vertices = vertices;
     this.edges = edges;
@@ -163,7 +163,7 @@ export class Wireframe {
       this.vertices,
       this.edges,
       this.origin,
-      this.axes
+      this.axes,
     );
     wireframe.transformations = wireframe.transformations;
     return wireframe;
@@ -402,6 +402,9 @@ export class Scene {
 
     ctx.clearRect(0, 0, width, height);
 
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, width, height);
+
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       ctx.strokeStyle =
@@ -416,17 +419,17 @@ export class Scene {
       const axisVector = wireframe.axes[i];
       ctx.moveTo(
         this.denormalize(wireframe.origin.x, "x"),
-        this.denormalize(wireframe.origin.y, "y")
+        this.denormalize(wireframe.origin.y, "y"),
       );
       ctx.lineTo(
         this.denormalize(axisVector.x, "x"),
-        this.denormalize(axisVector.y, "y")
+        this.denormalize(axisVector.y, "y"),
       );
       ctx.stroke();
     }
 
-    ctx.beginPath;
-    ctx.strokeStyle = "black";
+    ctx.beginPath();
+    ctx.strokeStyle = "green";
     for (let i = 0; i < edges.length; i++) {
       const [p1, p2] = edges[i];
 

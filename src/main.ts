@@ -6,6 +6,7 @@ import {
   getWorld2LocalMatrix,
   getWorld2LocalRotMatrix,
 } from "./transformations";
+import circleWireframe from "./circleWireframe";
 
 const canvas = document.getElementById("plane")! as HTMLCanvasElement;
 
@@ -35,8 +36,10 @@ const cube = new Wireframe(
     [3, 7],
   ],
   new Vector(0, 0, 4),
-  [new Vector(1, 0, 0), new Vector(0, 1, 0), new Vector(0, 0, 1)]
+  [new Vector(1, 0, 0), new Vector(0, 1, 0), new Vector(0, 0, 1)],
 );
+
+// const cube = circleWireframe;
 
 const camera = new Camera(new Vector(0, 0, 0), [
   new Vector(1, 0, 0),
@@ -60,7 +63,7 @@ const getProjectionMatrix = (fov: number) => {
 const mulProjMatByZ = (
   projMat: Matrix4,
   wireframe: Wireframe,
-  camera: Camera
+  camera: Camera,
 ) => {
   const l2wMat = getLocal2WorldMatrix(wireframe.origin);
   wireframe = wireframe.axesMulMat(l2wMat);
@@ -188,7 +191,7 @@ const render = (type: keyof typeof settings | "none") => {
   const projCube = mulProjMatByZ(
     projMat,
     trasnCube.clone(),
-    transCamera.clone()
+    transCamera.clone(),
   );
 
   // const reactEvent = new CustomEvent("reactEvent", {
